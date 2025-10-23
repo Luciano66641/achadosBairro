@@ -3,18 +3,21 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 import 'package:provider/provider.dart';
-import 'app_router.dart';
+import 'package:neighborhood_finds/app_router.dart';
 
-import 'features/items/data/firebase_item_repository.dart';
-import 'features/items/data/item_repository.dart';
-import 'features/items/presentation/item_list_viewmodel.dart';
-import 'features/items/presentation/new_item_viewmodel.dart';
+import 'package:neighborhood_finds/features/data/item_repository.dart';
+import 'package:neighborhood_finds/features/data/firebase_item_repository.dart';
+import 'package:neighborhood_finds/features/presentation/item_list_viewmodel.dart';
+import 'package:neighborhood_finds/features/presentation/new_item_viewmodel.dart';
+
+import 'package:neighborhood_finds/features/data/auth_repository.dart';
+import 'package:neighborhood_finds/features/presentation/auth_gate.dart';
+import 'package:neighborhood_finds/features/presentation/login_viewmodel.dart';
+import 'package:neighborhood_finds/features/presentation/signup_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
   runApp(const NeighborhoodFindsApp());
 }
 
@@ -24,15 +27,25 @@ class NeighborhoodFindsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-     providers: [
-        Provider<ItemRepository>(create: (_) => FirebaseItemRepository()),
-        ChangeNotifierProvider<ItemListViewModel>(
-          create: (ctx) => ItemListViewModel(ctx.read<ItemRepository>())..load(),
+      providers: [
+        // Auth
+        Provider<AuthRepository>(create: (_) => FirebaseAuthRepository()),
+        ChangeNotifierProvider<LoginViewModel>(
+          create: (ctx) => LoginViewModel(ctx.read<AuthRepository>()),
         ),
-        ChangeNotifierProvider<NewItemViewModel>(
+        ChangeNotifierProvider<SignupViewModel>(
+          create: (ctx) => SignupViewModel(ctx.read<AuthRepository>()),
+        ),
+        // Itens
+        Provider<ItemRepository>(create: (_) => FirebaseItemRepository()),
+        ChangeNotifierProvider(
+          create: (ctx) =>
+              ItemListViewModel(ctx.read<ItemRepository>())..load(),
+        ),
+        ChangeNotifierProvider(
           create: (ctx) => NewItemViewModel(ctx.read<ItemRepository>()),
         ),
-    ],
+      ],
       child: MaterialApp(
         title: 'Achados do Bairro',
         theme: ThemeData(
@@ -40,7 +53,7 @@ class NeighborhoodFindsApp extends StatelessWidget {
           useMaterial3: true,
         ),
         onGenerateRoute: AppRouter.onGenerateRoute,
-        initialRoute: AppRouter.itemListRoute,
+        home: const AuthGate(),
       ),
     );
   }

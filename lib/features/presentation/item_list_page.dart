@@ -9,6 +9,7 @@ import 'package:neighborhood_finds/features/data/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:neighborhood_finds/features/data/item_repository.dart';
 
+enum _MenuAction { profile, logout }
 
 class ItemListPage extends StatelessWidget {
   const ItemListPage({super.key});
@@ -27,20 +28,25 @@ class ItemListPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Achados do Bairro'),
         actions: [
-          IconButton(
-            tooltip: 'Sair',
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              // 🔐 chama o signOut do AuthRepository
-              await context.read<AuthRepository>().signOut();
-              // O AuthGate percebe user=null e mostra a LoginPage automaticamente.
-              // (Opcional) feedback visual:
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sessão encerrada.')),
-                );
+          PopupMenuButton<_MenuAction>(
+            tooltip: 'Mais opções',
+            onSelected: (value) async {
+              switch (value) {
+                case _MenuAction.profile:
+                  if (context.mounted) {
+                    Navigator.pushNamed(context, AppRouter.profile);
+                  }
+                  break;
+                case _MenuAction.logout:
+                  await context.read<AuthRepository>().signOut();
+                  // AuthGate manda pra tela de Login automaticamente.
+                  break;
               }
             },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: _MenuAction.profile, child: Text('Perfil')),
+              PopupMenuItem(value: _MenuAction.logout, child: Text('Sair')),
+            ],
           ),
         ],
       ),

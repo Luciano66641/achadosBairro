@@ -14,6 +14,8 @@ import 'package:neighborhood_finds/features/data/auth_repository.dart';
 import 'package:neighborhood_finds/features/presentation/auth_gate.dart';
 import 'package:neighborhood_finds/features/presentation/login_viewmodel.dart';
 import 'package:neighborhood_finds/features/presentation/signup_viewmodel.dart';
+import 'package:neighborhood_finds/features/presentation/profile_viewmodel.dart';
+import 'package:neighborhood_finds/features/presentation/profile_edit_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +32,13 @@ class NeighborhoodFindsApp extends StatelessWidget {
       providers: [
         // Auth
         Provider<AuthRepository>(create: (_) => FirebaseAuthRepository()),
+
+        ChangeNotifierProvider(
+          create: (ctx) => ProfileViewModel(ctx.read<AuthRepository>()),
+        ),
+        
+        ChangeNotifierProvider(create: (ctx) => ProfileEditViewModel(ctx.read<AuthRepository>())),
+        
         ChangeNotifierProvider<LoginViewModel>(
           create: (ctx) => LoginViewModel(ctx.read<AuthRepository>()),
         ),

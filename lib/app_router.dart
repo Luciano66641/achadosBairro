@@ -5,6 +5,8 @@ import 'features/presentation/item_detail_page.dart';
 import 'features/presentation/login_page.dart';
 import 'features/presentation/signup_page.dart';
 import 'package:neighborhood_finds/features/domain/item.dart';
+import 'package:neighborhood_finds/features/presentation/profile_page.dart';
+import 'package:neighborhood_finds/features/presentation/profile_edit_page.dart';
 
 class AppRouter {
   static const itemListRoute = '/';
@@ -12,6 +14,8 @@ class AppRouter {
   static const detailRoute = '/detail';
   static const login = '/login';
   static const signup = '/signup';
+  static const profile = '/profile';
+  static const profileEdit = '/profile/edit';
   static Route onGenerateRoute(RouteSettings s) {
     switch (s.name) {
       case itemListRoute:
@@ -25,6 +29,10 @@ class AppRouter {
       case detailRoute:
         final args = s.arguments as ItemDetailArgs;
         return MaterialPageRoute(builder: (_) => ItemDetailPage(args: args));
+      case profile:
+        return MaterialPageRoute(builder: (_) => const ProfilePage());
+      case profileEdit:
+        return MaterialPageRoute(builder: (_) => const ProfileEditPage());
       case login:
         return MaterialPageRoute(builder: (_) => const LoginPage());
       case signup:

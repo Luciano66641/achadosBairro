@@ -1,13 +1,23 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_router.dart';
 import 'item_detail_page.dart';
 import 'item_list_viewmodel.dart';
-
 import 'package:neighborhood_finds/features/data/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:neighborhood_finds/features/data/item_repository.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+
+Uint8List? decodeB64(String? value) {
+  if (value == null) return null;
+  final raw = value.contains(',') ? value.split(',').last : value;
+  try {
+    return base64Decode(raw.trim());
+  } catch (_) {
+    return null;
+  }
+}
 
 enum _MenuAction { profile, logout }
 
@@ -18,6 +28,26 @@ class ItemListPage extends StatelessWidget {
     if (m == null) return '—';
     if (m < 1000) return '${m.toStringAsFixed(0)} m';
     return '${(m / 1000).toStringAsFixed(1)} km';
+  }
+
+  Widget _buildThumb(BuildContext context, b64) {
+    final bytes = decodeB64(b64);
+    if (bytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.memory(bytes, width: 56, height: 56, fit: BoxFit.cover),
+      );
+    }
+    return Container(
+      width: 56,
+      height: 56,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.image, size: 20),
+    );
   }
 
   @override
@@ -76,7 +106,6 @@ class ItemListPage extends StatelessWidget {
                 final it = vm.items[i];
                 final isOwner =
                     FirebaseAuth.instance.currentUser?.uid == it.item.userId;
-
                 return Card(
                   clipBehavior: Clip.antiAlias,
                   child: ListTile(
@@ -85,16 +114,7 @@ class ItemListPage extends StatelessWidget {
                       AppRouter.detailRoute,
                       arguments: ItemDetailArgs(id: it.item.id),
                     ),
-                    leading: SizedBox(
-                      width: 56,
-                      height: 56,
-                      child: it.item.photoPath != null
-                          ? Image.file(
-                              File(it.item.photoPath!),
-                              fit: BoxFit.cover,
-                            )
-                          : const Icon(Icons.photo),
-                    ),
+                    leading: _buildThumb(context, it.item.imageBase64),
                     title: Text(it.item.title),
                     subtitle: Text(
                       it.item.description,

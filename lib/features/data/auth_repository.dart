@@ -13,7 +13,7 @@ abstract class AuthRepository {
   Future<AppUser> updateProfile({
     String? name,
     String? phone,
-    String? localPhotoPath,
+    String? photoBase64,
   });
   Future<void> updateEmailWithPassword({
     required String newEmail,
@@ -31,7 +31,6 @@ class FirebaseAuthRepository implements AuthRepository {
   final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
 
   final _db = FirebaseFirestore.instance;
-  final _storage = FirebaseStorage.instance;
 
   CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
@@ -130,7 +129,7 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<AppUser> updateProfile({
     String? name,
     String? phone,
-    String? localPhotoPath, // ignorado
+    String? photoBase64,
   }) async {
     final fb.User? u = _auth.currentUser;
     if (u == null) throw Exception('Não autenticado');
@@ -140,10 +139,10 @@ class FirebaseAuthRepository implements AuthRepository {
       await u.updateDisplayName(name);
     }
 
-    // Atualiza apenas name/phone/email no Firestore (sem photoUrl)
     await _users.doc(u.uid).set({
       if (name != null) 'name': name,
       if (phone != null) 'phone': phone,
+      if (photoBase64 != null) 'photoBase64': photoBase64,
       'email': u.email ?? '',
     }, SetOptions(merge: true));
 
@@ -159,17 +158,16 @@ class FirebaseAuthRepository implements AuthRepository {
     final fb.User? u = _auth.currentUser;
     if (u == null) throw Exception('Não autenticado');
 
-    // 1) Reautentica com a senha atual
+    // Reautentica com a senha atual
     final cred = fb.EmailAuthProvider.credential(
       email: u.email!,
       password: currentPassword,
     );
     await u.reauthenticateWithCredential(cred);
 
-    // 2) Dispara e-mail de verificação para o NOVO endereço
+    // Dispara e-mail de verificação para o NOVO endereço
     await u.verifyBeforeUpdateEmail(newEmail);
 
-    // 3) (Opcional) Atualize o Firestore de forma otimista OU aguarde o usuário confirmar
     await _users.doc(u.uid).set({'email': newEmail}, SetOptions(merge: true));
     // Observação: a conta só troca para o novo e-mail depois do clique no link.
     // Você pode pedir para o usuário reabrir o app ou chamar u.reload() após o clique.

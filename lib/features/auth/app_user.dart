@@ -3,21 +3,21 @@ class AppUser {
   final String email;
   final String name;
   final String? phone;
-  final String? photoUrl;
+  final String? photoBase64;
 
   const AppUser({
     required this.uid,
     required this.email,
     required this.name,
     this.phone,
-    this.photoUrl,
+    this.photoBase64,
   });
 
   Map<String, dynamic> toMap() => {
     'email': email,
     'name': name,
     'phone': phone,
-    'photoUrl': photoUrl,
+    'photoBase64': photoBase64,
   };
 
   factory AppUser.fromMap(String uid, Map<String, dynamic> map) {
@@ -26,7 +26,7 @@ class AppUser {
       email: (map['email'] ?? '') as String,
       name:  (map['name']  ?? '') as String,
       phone: map['phone'] as String?,
-      photoUrl: map['photoUrl'] as String?,
+      photoBase64: map['photoBase64'] as String?,
     );
   }
 }

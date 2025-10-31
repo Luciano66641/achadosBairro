@@ -2,6 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'profile_viewmodel.dart';
 import '../../app_router.dart';
+import 'dart:typed_data';
+import 'dart:convert';
+
+Uint8List? decodeB64(String? v) {
+  if (v == null || v.isEmpty) return null;
+  final raw = v.contains(',') ? v.split(',').last : v;
+  try {
+    return base64Decode(raw);
+  } catch (_) {
+    return null;
+  }
+}
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -11,6 +23,16 @@ class ProfilePage extends StatelessWidget {
     final vm = context.watch<ProfileViewModel>();
 
     final u = vm.user;
+
+    final mem = decodeB64(u?.photoBase64);
+    Widget avatar() {
+      if (mem != null) {
+        return CircleAvatar(radius: 24, backgroundImage: MemoryImage(mem));
+      }
+      return const CircleAvatar(radius: 24, child: Icon(Icons.person));
+    }
+
+    final bytes = decodeB64(u?.photoBase64);
 
     return Scaffold(
       appBar: AppBar(
@@ -39,14 +61,11 @@ class ProfilePage extends StatelessWidget {
               children: [
                 Center(
                   child: CircleAvatar(
-                    radius: 48,
-                    backgroundImage:
-                        (u.photoUrl != null && u.photoUrl!.isNotEmpty)
-                        ? NetworkImage(u.photoUrl!)
+                    radius: 28,
+                    backgroundImage: (bytes != null)
+                        ? MemoryImage(bytes)
                         : null,
-                    child: (u.photoUrl == null || u.photoUrl!.isEmpty)
-                        ? const Icon(Icons.person, size: 48)
-                        : null,
+                    child: (bytes == null) ? const Icon(Icons.person) : null,
                   ),
                 ),
                 const SizedBox(height: 16),

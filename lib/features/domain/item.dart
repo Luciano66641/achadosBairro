@@ -4,11 +4,11 @@ class Item {
   final String id;
   final String title;
   final String description;
-  final String? photoPath; // caminho local da foto
   final double lat;
   final double lng;
   final String? userId;
   final DateTime createdAt;
+  final String? imageBase64;
 
   const Item({
     required this.id,
@@ -16,7 +16,7 @@ class Item {
     required this.description,
     required this.lat,
     required this.lng,
-    this.photoPath,
+    this.imageBase64,
     this.userId,
     required this.createdAt,
   });
@@ -28,7 +28,7 @@ class Item {
     'lng': lng,
     'createdAt': createdAt,
     'userId': userId,
-    // photoPath fora por enquanto
+    'imageBase64': imageBase64,
   };
 
   factory Item.fromMap(String id, Map<String, dynamic> map) {
@@ -39,8 +39,7 @@ class Item {
       description: (map['description'] ?? '') as String,
       lat: (map['lat'] as num).toDouble(),
       lng: (map['lng'] as num).toDouble(),
-      photoPath:
-          null, // ignorado a foto por hora, até criar a lógica para base64
+      imageBase64: map['imageBase64'] as String?,
       userId: map['userId'] as String?,
       createdAt: ts is DateTime ? ts : (ts?.toDate() ?? DateTime.now()),
     );
@@ -55,6 +54,7 @@ class Item {
     String? photoPath,
     String? userId,
     DateTime? createdAt,
+    String? imageBase64,
   }) {
     return Item(
       id: id ?? this.id,
@@ -62,7 +62,7 @@ class Item {
       description: description ?? this.description,
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
-      photoPath: photoPath ?? this.photoPath,
+      imageBase64: imageBase64 ?? this.imageBase64,
       userId: userId ?? this.userId,
       createdAt: createdAt ?? this.createdAt,
     );

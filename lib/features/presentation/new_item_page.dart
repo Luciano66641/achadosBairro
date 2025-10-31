@@ -1,10 +1,28 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'new_item_viewmodel.dart';
 import 'package:neighborhood_finds/features/domain/item.dart';
-import 'package:neighborhood_finds/features/data/item_repository.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+
+Uint8List? decodeB64(String? value) {
+  if (value == null) return null;
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return null;
+
+  // aceita "data:*;base64,XXXXX" ou só "XXXXX"
+  final raw = trimmed.contains(',') ? trimmed.split(',').last : trimmed;
+
+  try {
+    return base64Decode(raw);
+  } catch (_) {
+    return null;
+  }
+}
 
 class NewItemPage extends StatefulWidget {
   final Item? initial;
@@ -20,6 +38,7 @@ class _NewItemPageState extends State<NewItemPage> {
   final _desc = TextEditingController();
   XFile? _photo;
   double? _lat, _lng;
+  Uint8List? _previewBytes;
 
   @override
   void initState() {
@@ -35,6 +54,49 @@ class _NewItemPageState extends State<NewItemPage> {
     }
   }
 
+  Widget _buildNewItemPreview() {
+    // 1) se usuário acabou de tirar foto, mostra os bytes
+    if (_previewBytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.memory(
+          _previewBytes!,
+          height: 180,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    // 2) se está editando um item existente, mostra a imagemBase64 dele
+    if (widget.initial?.imageBase64 != null &&
+        widget.initial!.imageBase64!.isNotEmpty) {
+      final bytes = decodeB64(widget.initial!.imageBase64);
+      if (bytes != null) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.memory(
+            bytes,
+            height: 180,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+        );
+      }
+    }
+
+    // 3) fallback
+    return Container(
+      height: 180,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(Icons.image, size: 48),
+    );
+  }
+
   Future<void> _getLocation() async {
     final pos = await NewItemViewModel.getCurrentPosition();
     if (!mounted) return;
@@ -46,10 +108,20 @@ class _NewItemPageState extends State<NewItemPage> {
 
   Future<void> _pickPhoto() async {
     final picker = ImagePicker();
-    final file = await picker
-        .pickImage(source: ImageSource.camera)
-        .catchError((_) => null);
-    if (file != null && mounted) setState(() => _photo = file);
+    final file = await picker.pickImage(
+      source: ImageSource.camera, // ou gallery se quiser
+      imageQuality: 85,
+      maxWidth: 1080,
+    );
+    if (file == null) return;
+
+    // Lê os bytes para mostrar preview imediatamente (funciona em emulador e web)
+    final bytes = await file.readAsBytes();
+
+    setState(() {
+      _photo = file;
+      _previewBytes = bytes; // agora temos a imagem na tela antes de salvar
+    });
   }
 
   @override
@@ -144,6 +216,18 @@ class _NewItemPageState extends State<NewItemPage> {
                           if (_form.currentState!.validate() &&
                               _lat != null &&
                               _lng != null) {
+                            String? imageBase64;
+                            if (_previewBytes != null) {
+                              final b64 = base64Encode(_previewBytes!);
+                              final isPng =
+                                  (_photo?.name.toLowerCase().endsWith(
+                                    '.png',
+                                  ) ??
+                                  false);
+                              final mime = isPng ? 'image/png' : 'image/jpeg';
+                              imageBase64 = 'data:$mime;base64,$b64';
+                            }
+
                             if (widget.initial == null) {
                               // criar
                               final ok = await vm.create(
@@ -151,20 +235,20 @@ class _NewItemPageState extends State<NewItemPage> {
                                 description: _desc.text.trim(),
                                 lat: _lat!,
                                 lng: _lng!,
+                                imageBase64: imageBase64,
                               );
                               if (ok && mounted) Navigator.pop(context);
                             } else {
                               // editar
-                              final updated = widget.initial!.copyWith(
+                              final ok = await vm.update(
+                                item: widget.initial!,
                                 title: _title.text.trim(),
                                 description: _desc.text.trim(),
                                 lat: _lat!,
                                 lng: _lng!,
+                                imageBase64: imageBase64,
                               );
-                              await context.read<ItemRepository>().update(
-                                updated,
-                              );
-                              if (mounted) Navigator.pop(context);
+                              if (ok && mounted) Navigator.pop(context);
                             }
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(

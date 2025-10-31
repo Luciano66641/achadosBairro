@@ -15,7 +15,7 @@ class ProfileEditViewModel extends ChangeNotifier {
   bool saving = false;
 
   Uint8List? previewBytes;
-  String? _photoBase64; // foto tirada com a câmera
+  String? _photoBase64; 
 
   Future<void> load() async {
     user = await _repo.currentUser();
@@ -77,7 +77,7 @@ class ProfileEditViewModel extends ChangeNotifier {
         currentPassword: currentPassword,
       );
       await load();
-      return null; // ok
+      return null;
     } catch (e) {
       return e.toString(); // devolve msg de erro para UI
     }

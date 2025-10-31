@@ -1,7 +1,6 @@
 import 'package:uuid/uuid.dart';
 import '../domain/item.dart';
 
-
 abstract class ItemRepository {
   Future<List<Item>> list();
   Future<Item> add(Item item);

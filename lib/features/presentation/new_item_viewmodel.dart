@@ -56,25 +56,13 @@ class NewItemViewModel extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      // Se o seu Item tem copyWith, use:
-      final updated = (item.copyWith != null)
-          ? item.copyWith(
-              title: title,
-              description: description,
-              lat: lat,
-              lng: lng,
-              imageBase64: imageBase64 ?? item.imageBase64,
-            )
-          : Item(
-              id: item.id,
-              title: title,
-              description: description,
-              lat: lat,
-              lng: lng,
-              imageBase64: imageBase64 ?? item.imageBase64,
-              userId: item.userId, // se o seu modelo tiver esse campo
-              createdAt: item.createdAt, // <--- ADICIONA ESTA LINHA
-            );
+      final updated = item.copyWith(
+        title: title,
+        description: description,
+        lat: lat,
+        lng: lng,
+        imageBase64: imageBase64 ?? item.imageBase64,
+      );
 
       await _repo.update(updated);
       return true;

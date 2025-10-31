@@ -38,15 +38,18 @@ class FirebaseItemRepository implements ItemRepository {
   }
 
   @override
-  Future<void> update(Item item) async {
+  Future<void> update(Item item, {String? newImageBase64}) async {
     // só campos editáveis
-    await _col.doc(item.id).update({
+    final data = <String, dynamic>{
       'title': item.title,
       'description': item.description,
       'lat': item.lat,
       'lng': item.lng,
-      // userId e createdAt NÃO mudam
-    });
+    };
+    if (item.imageBase64 != null) {
+      data['imageBase64'] = item.imageBase64;
+    }
+    await _col.doc(item.id).update(data);
   }
 
   @override

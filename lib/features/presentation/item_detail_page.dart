@@ -1,12 +1,14 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/item_repository.dart';
 import '../domain/item.dart';
-import 'dart:convert';
-import 'dart:typed_data';
 
 Uint8List? decodeB64(String? value) {
   if (value == null) return null;
@@ -36,13 +38,73 @@ class ItemDetailPage extends StatefulWidget {
   State<ItemDetailPage> createState() => _ItemDetailPageState();
 }
 
+class UserCommentTile extends StatelessWidget {
+  final ItemComment c;
+  const UserCommentTile({super.key, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final userStream = FirebaseFirestore.instance
+        .collection('users')
+        .doc(c.userId)
+        .snapshots();
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: userStream,
+      builder: (context, snap) {
+        final data = snap.data?.data() ?? const {};
+
+        final name = (data['name'] ?? data['displayName'] ?? 'Usuário') as String;
+        final photoBase64 = data['photoBase64'] as String?;
+
+        ImageProvider? avatar;
+        if (photoBase64 != null && photoBase64.isNotEmpty) {
+          try {
+            final b64 = photoBase64.contains(',')
+                ? photoBase64.split(',').last
+                : photoBase64;
+            avatar = MemoryImage(base64Decode(b64));
+          } catch (_) {
+            avatar = null;
+          }
+        }
+
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundImage: avatar,
+            child: avatar == null ? const Icon(Icons.person) : null,
+          ),
+          title: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          // seu modelo usa "value" como texto do comentário
+          subtitle: Text(c.value),
+        );
+      },
+    );
+  }
+}
+
 class _ItemDetailPageState extends State<ItemDetailPage> {
   Item? _item;
+
+  // --- Comentários ---
+  final _commentCtrl = TextEditingController();
+  bool _sending = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _commentCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -57,6 +119,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
       'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
     );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível abrir o Maps')),
       );
@@ -87,10 +150,128 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     );
   }
 
+  String _fmtDateTime(DateTime dt) {
+    return '${dt.day.toString().padLeft(2, '0')}/'
+        '${dt.month.toString().padLeft(2, '0')}/'
+        '${dt.year} ${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _sendComment() async {
+    final text = _commentCtrl.text.trim();
+    if (text.isEmpty) return;
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa estar logado para comentar.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _sending = true);
+    try {
+      final repo = context.read<ItemRepository>();
+      await repo.addComment(
+        itemId: widget.args.id,
+        comment: ItemComment(
+          userId: uid,
+          createdAt: DateTime.now(),
+          value: text,
+        ),
+      );
+      _commentCtrl.clear();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao enviar comentário: $e')));
+    } finally {
+      if (!mounted) return;
+      setState(() => _sending = false);
+    }
+  }
+
+  Widget _buildComments() {
+    final repo = context.read<ItemRepository>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Text('Comentários', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+
+        // Lista reativa
+        StreamBuilder<List<ItemComment>>(
+          stream: repo.watchComments(widget.args.id),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: LinearProgressIndicator(minHeight: 2),
+              );
+            }
+            final comments = snap.data ?? const <ItemComment>[];
+            if (comments.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('Seja o primeiro a comentar.'),
+              );
+            }
+            return ListView.builder(
+  shrinkWrap: true,
+  physics: const NeverScrollableScrollPhysics(),
+  itemCount: comments.length,
+  itemBuilder: (context, index) {
+    final c = comments[index]; // já é ItemComment
+    return UserCommentTile(c: c);
+  },
+);
+
+          },
+        ),
+
+        const SizedBox(height: 12),
+
+        // Caixa de envio
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _commentCtrl,
+                decoration: const InputDecoration(
+                  hintText: 'Escreva um comentário...',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                minLines: 1,
+                maxLines: 5,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              onPressed: _sending ? null : _sendComment,
+              icon: _sending
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send),
+              tooltip: 'Enviar',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final it = _item;
-    final mem = decodeB64(it?.imageBase64);
     return Scaffold(
       appBar: AppBar(title: const Text('Detalhes do Item')),
       body: it == null
@@ -118,6 +299,8 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                     icon: const Icon(Icons.map_outlined),
                     label: const Text("Abrir no Maps"),
                   ),
+
+                  _buildComments(),
                 ],
               ),
             ),

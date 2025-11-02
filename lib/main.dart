@@ -16,6 +16,7 @@ import 'package:neighborhood_finds/features/presentation/login_viewmodel.dart';
 import 'package:neighborhood_finds/features/presentation/signup_viewmodel.dart';
 import 'package:neighborhood_finds/features/presentation/profile_viewmodel.dart';
 import 'package:neighborhood_finds/features/presentation/profile_edit_viewmodel.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,9 +37,11 @@ class NeighborhoodFindsApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (ctx) => ProfileViewModel(ctx.read<AuthRepository>()),
         ),
-        
-        ChangeNotifierProvider(create: (ctx) => ProfileEditViewModel(ctx.read<AuthRepository>())),
-        
+
+        ChangeNotifierProvider(
+          create: (ctx) => ProfileEditViewModel(ctx.read<AuthRepository>()),
+        ),
+
         ChangeNotifierProvider<LoginViewModel>(
           create: (ctx) => LoginViewModel(ctx.read<AuthRepository>()),
         ),
@@ -46,7 +49,10 @@ class NeighborhoodFindsApp extends StatelessWidget {
           create: (ctx) => SignupViewModel(ctx.read<AuthRepository>()),
         ),
         // Itens
-        Provider<ItemRepository>(create: (_) => FirebaseItemRepository()),
+        Provider<ItemRepository>(
+          create: (_) => FirebaseItemRepository(FirebaseFirestore.instance),
+        ),
+        
         ChangeNotifierProvider(
           create: (ctx) =>
               ItemListViewModel(ctx.read<ItemRepository>())..load(),

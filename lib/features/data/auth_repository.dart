@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import '../auth/app_user.dart';
 
 abstract class AuthRepository {
+  String? get userId;
   Future<AppUser> signUp({
     required String name,
     required String email,
@@ -34,6 +35,9 @@ class FirebaseAuthRepository implements AuthRepository {
 
   CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
+
+  @override
+  String? get userId => _auth.currentUser?.uid; // ✅
 
   @override
   Stream<AppUser?> authState() {
